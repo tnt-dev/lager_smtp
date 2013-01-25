@@ -48,6 +48,28 @@ handle_event({log, Level, {Date, Time}, [_LevelStr, Location, RawMessage]}, #sta
 	end,		
 	{ok, State#state{flush_scheduled = true}};
 
+handle_event({log, Message}, #state{
+		level = LogLevel,
+		flush_scheduled = FlushScheduled,
+		flush_interval = FlushInterval
+	} = State) ->
+    case lager_util:is_loggable(Message, LogLevel, ?MODULE) of
+        true ->
+			{Date, Time} = lager_msg:timestamp(Message),
+			Level = lager_msg:severity(Message),
+			RawMessage = lager_msg:message(Message),
+			Location = "location",
+			ets:insert(?ETS_BUFFER, {{Date, Time, Location}, Level, RawMessage}),
+			case FlushScheduled of
+				true -> ok;
+				false ->
+					timer:apply_after(FlushInterval, gen_event, notify, [lager_event, smtp_flush])
+			end,
+			{ok, State#state{flush_scheduled = true}};
+        false ->
+			{ok, State}
+    end;
+
 handle_event(smtp_flush, #state{
 		to = To,
 		relay = Relay,
@@ -107,6 +129,8 @@ join_to([Last], Acc) when is_binary(Last) ->
 join_to([Recipient|To], Acc) ->
 	join_to(To, [<<", ">> | [Recipient | Acc]]).
 
+convert_level(Atom) when is_atom(Atom) ->
+	atom_to_binary(Atom, utf8);
 convert_level(?DEBUG) -> <<"debug">>;
 convert_level(?INFO) -> <<"info">>;
 convert_level(?NOTICE) -> <<"Notice">>;
