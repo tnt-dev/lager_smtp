@@ -45,7 +45,7 @@ handle_event({log, Level, {Date, Time}, [_LevelStr, Location, RawMessage]}, #sta
 		true -> ok;
 		false ->
 			timer:apply_after(FlushInterval, gen_event, notify, [lager_event, smtp_flush])
-	end,		
+	end,
 	{ok, State#state{flush_scheduled = true}};
 
 handle_event(smtp_flush, #state{
@@ -60,25 +60,25 @@ handle_event(smtp_flush, #state{
 		BinaryDate = iolist_to_binary(Date),
 		BinaryTime = iolist_to_binary(Time),
 		BinaryLocation = iolist_to_binary(Location),
-		BinaryLevel = convert_level(Level),	
-		BinaryMessage = iolist_to_binary(RawMessage),	
+		BinaryLevel = convert_level(Level),
+		BinaryMessage = iolist_to_binary(RawMessage),
 
-		BodyPart = <<"[", BinaryLevel/binary, "] ", 
+		BodyPart = <<"[", BinaryLevel/binary, "] ",
 			BinaryDate/binary, " ", BinaryTime/binary, " at ",
 			BinaryLocation/binary, "\r\n\r\n",
 			BinaryMessage/binary, "\r\n\r\n">>,
 		<<Acc/binary, BodyPart/binary>>
 	end, <<>>, ?ETS_BUFFER),
-	
+	true = ets:delete_all_objects(?ETS_BUFFER),
 	BinaryNode = list_to_binary(atom_to_list(node())),
 	Subject = <<"Logs from ", BinaryNode/binary>>,
-	Recipients = join_to(To),	
-	
+	Recipients = join_to(To),
+
 	S = <<"Subject: ">>, F = <<"\r\nFrom: ">>, T = <<"\r\nTo: ">>, B = <<"\r\n\r\n">>,
-	
+
 	Message = <<S/binary, Subject/binary, F/binary, Username/binary,
-				T/binary, Recipients/binary, B/binary, Body/binary>>,	
-	
+				T/binary, Recipients/binary, B/binary, Body/binary>>,
+
 	gen_smtp_client:send({Username, To, Message},
 		[{relay, Relay}, {username, Username}, {password, Password}, {port, Port}, {ssl, SSL}]),
 	{ok, State#state{flush_scheduled = false}};
