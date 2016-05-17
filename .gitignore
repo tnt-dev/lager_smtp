@@ -7,3 +7,4 @@ priv
 *.plt
 .project
 .settings
+.rebar
