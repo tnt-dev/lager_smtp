@@ -13,7 +13,6 @@
 -include_lib("lager/include/lager.hrl").
 
 init(Args) when is_list(Args) ->
-    ensure_started(),
     To = lists:map(fun iolist_to_binary/1, proplists:get_value(to, Args)),
     ets:new(?ETS_BUFFER, [ordered_set, private, named_table]),
     {ok, #state{
@@ -142,10 +141,4 @@ parse_level(Level) ->
         error:undef ->
             %% must be lager < 2.0
             lager_util:level_to_num(Level)
-    end.
-
-ensure_started() ->
-    case application:start(gen_smtp) of
-        ok -> ok;
-        {error, {already_started, _}} -> ok
     end.
